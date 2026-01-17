@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HeadViz Sphere Controls</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        background: radial-gradient(circle at top, #1f2a38, #0b0f14 60%);
+        color: #f4f6fa;
+      }
+
+      #app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        width: 100%;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .panel {
+        padding: 24px;
+        background: rgba(12, 15, 20, 0.8);
+        backdrop-filter: blur(10px);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .panel h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .panel p {
+        margin: 0;
+        line-height: 1.5;
+        color: #c9d3e1;
+      }
+
+      .controls {
+        display: grid;
+        gap: 12px;
+      }
+
+      .control-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .control-group span {
+        grid-column: 1 / -1;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.75rem;
+        color: #8fa3bd;
+      }
+
+      button {
+        background: #1d2734;
+        border: 1px solid #2e3a4b;
+        color: inherit;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        border-color: #5e86ff;
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .legend {
+        display: grid;
+        gap: 10px;
+        font-size: 0.9rem;
+      }
+
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+      }
+
+      .swatch.red {
+        color: #ff4d4d;
+      }
+
+      .swatch.blue {
+        color: #4da3ff;
+      }
+
+      .swatch.green {
+        color: #4dff88;
+      }
+
+      .swatch.white {
+        color: #f4f6fa;
+      }
+
+      @media (max-width: 900px) {
+        #app {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          border-left: none;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div class="panel">
+        <h1>Sphere Orientation Controls</h1>
+        <p>
+          Rotate the semi-transparent sphere and its great circles around each axis.
+          The red circle tracks the vertical (Y) axis, and the blue circle tracks the
+          horizontal (X) axis.
+        </p>
+        <div class="controls">
+          <p>
+            Click and drag in the canvas to rotate the sphere freely around the fixed axes.
+          </p>
+        </div>
+        <div class="legend">
+          <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
+          <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
+          <span><span class="swatch green"></span> Green: fixed vertical axis</span>
+          <span><span class="swatch green"></span> Green: fixed horizontal axis</span>
+          <span><span class="swatch white"></span> White: surface normal at circle intersection</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js";
+
+      const canvas = document.querySelector("#scene");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color("#0b0f14");
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      camera.position.set(0, 0, 6);
+
+      const light = new THREE.DirectionalLight(0xffffff, 1.1);
+      light.position.set(3, 3, 4);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const axisMaterial = new THREE.LineBasicMaterial({ color: 0x4dff88 });
+      const axisGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, -2, 0),
+        new THREE.Vector3(0, 2, 0),
+      ]);
+      const verticalAxis = new THREE.Line(axisGeometry, axisMaterial);
+      scene.add(verticalAxis);
+
+      const horizontalAxisGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-2, 0, 0),
+        new THREE.Vector3(2, 0, 0),
+      ]);
+      const horizontalAxis = new THREE.Line(horizontalAxisGeometry, axisMaterial);
+      scene.add(horizontalAxis);
+
+      let isDragging = false;
+      let lastX = 0;
+      let lastY = 0;
+      const rotationSpeed = 0.005;
+
+      const onPointerDown = (event) => {
+        isDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+      };
+
+      const onPointerMove = (event) => {
+        if (!isDragging) {
+          return;
+        }
+
+        const deltaX = event.clientX - lastX;
+        const deltaY = event.clientY - lastY;
+        group.rotation.y += deltaX * rotationSpeed;
+        group.rotation.x += deltaY * rotationSpeed;
+
+        lastX = event.clientX;
+        lastY = event.clientY;
+      };
+
+      const endDrag = () => {
+        isDragging = false;
+      };
+
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointerleave", endDrag);
+
+      const sphereGeometry = new THREE.SphereGeometry(1.5, 64, 64);
+      const sphereMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x3fa9f5,
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.1,
+        metalness: 0.1,
+        transmission: 0.4,
+        side: THREE.DoubleSide,
+      });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      group.add(sphere);
+
+      const ringSegments = 128;
+      const verticalCircle = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(
+          Array.from({ length: ringSegments + 1 }, (_, i) => {
+            const theta = (i / ringSegments) * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(theta) * 1.55, 0, Math.sin(theta) * 1.55);
+          })
+        ),
+        new THREE.LineBasicMaterial({ color: 0xff4d4d })
+      );
+      group.add(verticalCircle);
+
+      const horizontalCircle = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(
+          Array.from({ length: ringSegments + 1 }, (_, i) => {
+            const theta = (i / ringSegments) * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(theta) * 1.55, 0, Math.sin(theta) * 1.55);
+          })
+        ),
+        new THREE.LineBasicMaterial({ color: 0x4da3ff })
+      );
+      horizontalCircle.rotation.z = Math.PI / 2;
+      group.add(horizontalCircle);
+
+      const tangentMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+      const normalGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 1.5),
+        new THREE.Vector3(0, 0, 2.2),
+      ]);
+      const normalLine = new THREE.Line(normalGeometry, tangentMaterial);
+      group.add(normalLine);
+
+      const resize = () => {
+        const { clientWidth, clientHeight } = canvas;
+        renderer.setSize(clientWidth, clientHeight, false);
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
+      };
+
+      const render = () => {
+        resize();
+        renderer.render(scene, camera);
+        requestAnimationFrame(render);
+      };
+
+      render();
+
+      window.addEventListener("resize", resize);
+    </script>
+  </body>
+</html>
