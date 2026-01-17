@@ -151,6 +151,11 @@
           <p>
             Click and drag in the canvas to rotate the sphere freely around the fixed axes.
           </p>
+          <div class="control-group">
+            <span>Rotate around white axis</span>
+            <button data-axis="z" data-direction="1">White +</button>
+            <button data-axis="z" data-direction="-1">White −</button>
+          </div>
         </div>
         <div class="legend">
           <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
@@ -276,6 +281,15 @@
       ]);
       const normalLine = new THREE.Line(normalGeometry, tangentMaterial);
       group.add(normalLine);
+
+      const axisRotationStep = Math.PI / 24;
+      document.querySelectorAll("button[data-axis]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const axis = button.dataset.axis;
+          const direction = Number(button.dataset.direction);
+          group.rotation[axis] += axisRotationStep * direction;
+        });
+      });
 
       const resize = () => {
         const { clientWidth, clientHeight } = canvas;
