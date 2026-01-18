@@ -156,6 +156,10 @@
             <button data-axis="z" data-direction="1">White +</button>
             <button data-axis="z" data-direction="-1">White −</button>
           </div>
+          <div class="control-group">
+            <span>Reset</span>
+            <button id="reset-view">Reset orientation</button>
+          </div>
         </div>
         <div class="legend">
           <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
@@ -187,6 +191,9 @@
 
       const group = new THREE.Group();
       scene.add(group);
+
+      const initialRotation = new THREE.Euler(-0.3, -0.4, 0);
+      group.rotation.copy(initialRotation);
 
       const axisMaterial = new THREE.LineBasicMaterial({ color: 0x4dff88 });
       const axisGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -237,7 +244,8 @@
       window.addEventListener("pointerup", endDrag);
       window.addEventListener("pointerleave", endDrag);
 
-      const sphereGeometry = new THREE.SphereGeometry(1.5, 64, 64);
+      const sphereRadius = 1.5;
+      const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 64, 64);
       const sphereMaterial = new THREE.MeshPhysicalMaterial({
         color: 0x3fa9f5,
         transparent: true,
@@ -255,7 +263,7 @@
         new THREE.BufferGeometry().setFromPoints(
           Array.from({ length: ringSegments + 1 }, (_, i) => {
             const theta = (i / ringSegments) * Math.PI * 2;
-            return new THREE.Vector3(Math.cos(theta) * 1.55, 0, Math.sin(theta) * 1.55);
+            return new THREE.Vector3(Math.cos(theta) * sphereRadius, 0, Math.sin(theta) * sphereRadius);
           })
         ),
         new THREE.LineBasicMaterial({ color: 0xff4d4d })
@@ -266,7 +274,7 @@
         new THREE.BufferGeometry().setFromPoints(
           Array.from({ length: ringSegments + 1 }, (_, i) => {
             const theta = (i / ringSegments) * Math.PI * 2;
-            return new THREE.Vector3(Math.cos(theta) * 1.55, 0, Math.sin(theta) * 1.55);
+            return new THREE.Vector3(Math.cos(theta) * sphereRadius, 0, Math.sin(theta) * sphereRadius);
           })
         ),
         new THREE.LineBasicMaterial({ color: 0x4da3ff })
@@ -276,7 +284,7 @@
 
       const tangentMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
       const normalGeometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 1.5),
+        new THREE.Vector3(0, 0, sphereRadius),
         new THREE.Vector3(0, 0, 2.2),
       ]);
       const normalLine = new THREE.Line(normalGeometry, tangentMaterial);
@@ -289,6 +297,11 @@
           const direction = Number(button.dataset.direction);
           group.rotation[axis] += axisRotationStep * direction;
         });
+      });
+
+      const resetButton = document.querySelector("#reset-view");
+      resetButton.addEventListener("click", () => {
+        group.rotation.copy(initialRotation);
       });
 
       const resize = () => {
