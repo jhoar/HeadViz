@@ -196,10 +196,6 @@
             <button data-axis="z" data-direction="-1">White −</button>
           </div>
           <div class="control-group">
-            <span>Control mode</span>
-            <button id="toggle-mode">Switch to camera orbit</button>
-          </div>
-          <div class="control-group">
             <span>Camera type</span>
             <button id="toggle-camera">Switch to orthographic</button>
           </div>
@@ -230,11 +226,21 @@
       renderer.setPixelRatio(window.devicePixelRatio);
 
       const cameraRadius = 6;
-      const perspectiveCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-      const orthographicCamera = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+      const sphereRadius = 1.5;
+      const orthographicFrustumSize = 4;
+      const perspectiveFov =
+        (2 * Math.atan(orthographicFrustumSize / (2 * cameraRadius)) * 180) / Math.PI;
+      const perspectiveCamera = new THREE.PerspectiveCamera(perspectiveFov, 1, 0.1, 100);
+      const orthographicCamera = new THREE.OrthographicCamera(
+        -orthographicFrustumSize / 2,
+        orthographicFrustumSize / 2,
+        orthographicFrustumSize / 2,
+        -orthographicFrustumSize / 2,
+        0.1,
+        100
+      );
       let activeCamera = orthographicCamera;
       let cameraMode = "orthographic";
-      const orthographicFrustumSize = 4;
       activeCamera.position.set(0, 0, cameraRadius);
 
       const light = new THREE.DirectionalLight(0xffffff, 1.1);
@@ -266,8 +272,6 @@
       let lastX = 0;
       let lastY = 0;
       const rotationSpeed = 0.005;
-      const orbitSpeed = 0.004;
-      let controlMode = "sphere";
 
       const onPointerDown = (event) => {
         isDragging = true;
@@ -282,15 +286,8 @@
 
         const deltaX = event.clientX - lastX;
         const deltaY = event.clientY - lastY;
-        if (controlMode === "sphere") {
-          group.rotation.y += deltaX * rotationSpeed;
-          group.rotation.x += deltaY * rotationSpeed;
-        } else {
-          cameraYaw += deltaX * orbitSpeed;
-          cameraPitch += deltaY * orbitSpeed;
-          cameraPitch = Math.max(-cameraPitchLimit, Math.min(cameraPitchLimit, cameraPitch));
-          updateCameraOrbit();
-        }
+        group.rotation.y += deltaX * rotationSpeed;
+        group.rotation.x += deltaY * rotationSpeed;
 
         lastX = event.clientX;
         lastY = event.clientY;
@@ -305,7 +302,6 @@
       window.addEventListener("pointerup", endDrag);
       window.addEventListener("pointerleave", endDrag);
 
-      const sphereRadius = 1.5;
       const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 64, 64);
       const sphereMaterial = new THREE.MeshPhysicalMaterial({
         color: 0x3fa9f5,
@@ -360,17 +356,6 @@
         });
       });
 
-      const toggleModeButton = document.querySelector("#toggle-mode");
-      const updateModeUI = () => {
-        toggleModeButton.textContent =
-          controlMode === "sphere" ? "Switch to camera orbit" : "Switch to sphere rotation";
-      };
-      toggleModeButton.addEventListener("click", () => {
-        controlMode = controlMode === "sphere" ? "camera" : "sphere";
-        updateModeUI();
-      });
-      updateModeUI();
-
       const toggleCameraButton = document.querySelector("#toggle-camera");
       const updateCameraUI = () => {
         toggleCameraButton.textContent =
@@ -391,8 +376,6 @@
 
       const resetButton = document.querySelector("#reset-view");
       resetButton.addEventListener("click", () => {
-        controlMode = "sphere";
-        updateModeUI();
         group.rotation.copy(initialRotation);
         cameraMode = "orthographic";
         activeCamera = orthographicCamera;
