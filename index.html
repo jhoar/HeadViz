@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HeadViz</title>
+    <title>HeadViz Sphere Controls</title>
     <style>
       :root {
         color-scheme: dark;
@@ -24,10 +24,37 @@
         width: 100%;
       }
 
+      .scene-wrap {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
       canvas {
         width: 100%;
         height: 100%;
         display: block;
+      }
+
+      .screen-axis {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        background: #4dff88;
+        box-shadow: 0 0 12px rgba(77, 255, 136, 0.4);
+        pointer-events: none;
+      }
+
+      .screen-axis.vertical {
+        width: 2px;
+        height: 520px;
+        transform: translate(-50%, -50%);
+      }
+
+      .screen-axis.horizontal {
+        width: 520px;
+        height: 2px;
+        transform: translate(-50%, -50%);
       }
 
       .panel {
@@ -139,29 +166,42 @@
   </head>
   <body>
     <div id="app">
-      <canvas id="scene"></canvas>
+      <div class="scene-wrap">
+        <canvas id="scene"></canvas>
+        <div class="screen-axis vertical"></div>
+        <div class="screen-axis horizontal"></div>
+      </div>
       <div class="panel">
-        <h1>Getting to grips with head orientation</h1>
+        <h1>Sphere Orientation Controls</h1>
         <p>
-          Excal's excellent video <a href='https://www.youtube.com/watch?v=bb3ZNrbkCoA'>
-          "The Biggest Mistake You're Making When Drawing Heads"</a> shows how to build up the 
-          basic structure of the Loomis head with the correct construction of the circle, axes and ellipses. 
-          This app shows how the ellipses change as the sphere orientation changes, this can be tricky to grasp.
+          Rotate the semi-transparent sphere and its great circles around each axis.
+          The red circle tracks the vertical (Y) axis, and the blue circle tracks the
+          horizontal (X) axis.
         </p>
-        <p>Any problems with this app are on me, not Excal.</p>
         <div class="controls">
           <p>
-            Click and drag in the canvas to rotate the sphere.
+            Click and drag in the canvas to rotate the sphere freely around the fixed axes.
           </p>
           <div class="control-group">
-            <span>Rotate around the 'nose'</span>
-            <button data-axis="z" data-direction="1">Left</button>
-            <button data-axis="z" data-direction="-1">Right</button>
+            <span>Rotate around white axis</span>
+            <button data-axis="z" data-direction="1">White +</button>
+            <button data-axis="z" data-direction="-1">White −</button>
+          </div>
+          <div class="control-group">
+            <span>Control mode</span>
+            <button id="toggle-mode">Switch to camera orbit</button>
           </div>
           <div class="control-group">
             <span>Reset</span>
             <button id="reset-view">Reset orientation</button>
           </div>
+        </div>
+        <div class="legend">
+          <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
+          <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
+          <span><span class="swatch green"></span> Green: screen-space vertical axis</span>
+          <span><span class="swatch green"></span> Green: screen-space horizontal axis</span>
+          <span><span class="swatch white"></span> White: surface normal at circle intersection</span>
         </div>
       </div>
     </div>
@@ -177,7 +217,8 @@
       renderer.setPixelRatio(window.devicePixelRatio);
 
       const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-      camera.position.set(0, 0, 6);
+      const cameraRadius = 6;
+      camera.position.set(0, 0, cameraRadius);
 
       const light = new THREE.DirectionalLight(0xffffff, 1.1);
       light.position.set(3, 3, 4);
@@ -190,25 +231,26 @@
       const initialRotation = new THREE.Euler(-0.3, -0.4, 0);
       group.rotation.copy(initialRotation);
 
-      const axisMaterial = new THREE.LineBasicMaterial({ color: 0x4dff88 });
-      const axisGeometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, -2, 0),
-        new THREE.Vector3(0, 2, 0),
-      ]);
-      const verticalAxis = new THREE.Line(axisGeometry, axisMaterial);
-      scene.add(verticalAxis);
+      const cameraTarget = new THREE.Vector3(0, 0, 0);
+      let cameraYaw = 0;
+      let cameraPitch = 0;
+      const cameraPitchLimit = Math.PI / 2 - 0.1;
 
-      const horizontalAxisGeometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-2, 0, 0),
-        new THREE.Vector3(2, 0, 0),
-      ]);
-      const horizontalAxis = new THREE.Line(horizontalAxisGeometry, axisMaterial);
-      scene.add(horizontalAxis);
+      const updateCameraOrbit = () => {
+        const x = cameraRadius * Math.cos(cameraPitch) * Math.sin(cameraYaw);
+        const y = cameraRadius * Math.sin(cameraPitch);
+        const z = cameraRadius * Math.cos(cameraPitch) * Math.cos(cameraYaw);
+        camera.position.set(x, y, z);
+        camera.lookAt(cameraTarget);
+      };
+      updateCameraOrbit();
 
       let isDragging = false;
       let lastX = 0;
       let lastY = 0;
       const rotationSpeed = 0.005;
+      const orbitSpeed = 0.004;
+      let controlMode = "sphere";
 
       const onPointerDown = (event) => {
         isDragging = true;
@@ -223,8 +265,15 @@
 
         const deltaX = event.clientX - lastX;
         const deltaY = event.clientY - lastY;
-        group.rotation.y += deltaX * rotationSpeed;
-        group.rotation.x += deltaY * rotationSpeed;
+        if (controlMode === "sphere") {
+          group.rotation.y += deltaX * rotationSpeed;
+          group.rotation.x += deltaY * rotationSpeed;
+        } else {
+          cameraYaw += deltaX * orbitSpeed;
+          cameraPitch += deltaY * orbitSpeed;
+          cameraPitch = Math.max(-cameraPitchLimit, Math.min(cameraPitchLimit, cameraPitch));
+          updateCameraOrbit();
+        }
 
         lastX = event.clientX;
         lastY = event.clientY;
@@ -294,9 +343,25 @@
         });
       });
 
+      const toggleModeButton = document.querySelector("#toggle-mode");
+      const updateModeUI = () => {
+        toggleModeButton.textContent =
+          controlMode === "sphere" ? "Switch to camera orbit" : "Switch to sphere rotation";
+      };
+      toggleModeButton.addEventListener("click", () => {
+        controlMode = controlMode === "sphere" ? "camera" : "sphere";
+        updateModeUI();
+      });
+      updateModeUI();
+
       const resetButton = document.querySelector("#reset-view");
       resetButton.addEventListener("click", () => {
+        controlMode = "sphere";
+        updateModeUI();
         group.rotation.copy(initialRotation);
+        cameraYaw = 0;
+        cameraPitch = 0;
+        updateCameraOrbit();
       });
 
       const resize = () => {
