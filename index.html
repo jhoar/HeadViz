@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HeadViz Sphere Controls</title>
+    <title>HeadViz</title>
     <style>
       :root {
         color-scheme: dark;
@@ -141,32 +141,27 @@
     <div id="app">
       <canvas id="scene"></canvas>
       <div class="panel">
-        <h1>Sphere Orientation Controls</h1>
+        <h1>Getting to grips with head orientation</h1>
         <p>
-          Rotate the semi-transparent sphere and its great circles around each axis.
-          The red circle tracks the vertical (Y) axis, and the blue circle tracks the
-          horizontal (X) axis.
+          Excal's excellent video <a href='https://www.youtube.com/watch?v=bb3ZNrbkCoA'>
+          "The Biggest Mistake You're Making When Drawing Heads"</a> shows how to build up the 
+          basic structure of the Loomis head with the correct construction of the circle, axes and ellipses. 
+          This app shows how the ellipses change as the sphere orientation changes, this can be tricky to grasp.
         </p>
+        <p>Any problems with this app are on me, not Excal.</p>
         <div class="controls">
           <p>
-            Click and drag in the canvas to rotate the sphere freely around the fixed axes.
+            Click and drag in the canvas to rotate the sphere.
           </p>
           <div class="control-group">
-            <span>Rotate around white axis</span>
-            <button data-axis="z" data-direction="1">White +</button>
-            <button data-axis="z" data-direction="-1">White −</button>
+            <span>Rotate around the 'nose'</span>
+            <button data-axis="z" data-direction="1">Left</button>
+            <button data-axis="z" data-direction="-1">Right</button>
           </div>
           <div class="control-group">
             <span>Reset</span>
             <button id="reset-view">Reset orientation</button>
           </div>
-        </div>
-        <div class="legend">
-          <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
-          <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
-          <span><span class="swatch green"></span> Green: fixed vertical axis</span>
-          <span><span class="swatch green"></span> Green: fixed horizontal axis</span>
-          <span><span class="swatch white"></span> White: surface normal at circle intersection</span>
         </div>
       </div>
     </div>
