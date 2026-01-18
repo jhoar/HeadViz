@@ -47,14 +47,22 @@
 
       .screen-axis.vertical {
         width: 2px;
-        height: 520px;
+        height: 600px;
         transform: translate(-50%, -50%);
       }
 
       .screen-axis.horizontal {
-        width: 520px;
+        width: 600px;
         height: 2px;
         transform: translate(-50%, -50%);
+      }
+
+      .scene-wrap.orthographic .screen-axis.vertical {
+        height: 680px;
+      }
+
+      .scene-wrap.orthographic .screen-axis.horizontal {
+        width: 680px;
       }
 
       .panel {
@@ -192,6 +200,10 @@
             <button id="toggle-mode">Switch to camera orbit</button>
           </div>
           <div class="control-group">
+            <span>Camera type</span>
+            <button id="toggle-camera">Switch to orthographic</button>
+          </div>
+          <div class="control-group">
             <span>Reset</span>
             <button id="reset-view">Reset orientation</button>
           </div>
@@ -210,15 +222,20 @@
       import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js";
 
       const canvas = document.querySelector("#scene");
+      const sceneWrap = document.querySelector(".scene-wrap");
       const scene = new THREE.Scene();
       scene.background = new THREE.Color("#0b0f14");
 
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
 
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
       const cameraRadius = 6;
-      camera.position.set(0, 0, cameraRadius);
+      const perspectiveCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      const orthographicCamera = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+      let activeCamera = orthographicCamera;
+      let cameraMode = "orthographic";
+      const orthographicFrustumSize = 4;
+      activeCamera.position.set(0, 0, cameraRadius);
 
       const light = new THREE.DirectionalLight(0xffffff, 1.1);
       light.position.set(3, 3, 4);
@@ -240,8 +257,8 @@
         const x = cameraRadius * Math.cos(cameraPitch) * Math.sin(cameraYaw);
         const y = cameraRadius * Math.sin(cameraPitch);
         const z = cameraRadius * Math.cos(cameraPitch) * Math.cos(cameraYaw);
-        camera.position.set(x, y, z);
-        camera.lookAt(cameraTarget);
+        activeCamera.position.set(x, y, z);
+        activeCamera.lookAt(cameraTarget);
       };
       updateCameraOrbit();
 
@@ -354,26 +371,58 @@
       });
       updateModeUI();
 
+      const toggleCameraButton = document.querySelector("#toggle-camera");
+      const updateCameraUI = () => {
+        toggleCameraButton.textContent =
+          cameraMode === "perspective" ? "Switch to orthographic" : "Switch to perspective";
+        sceneWrap.classList.toggle("orthographic", cameraMode === "orthographic");
+      };
+      toggleCameraButton.addEventListener("click", () => {
+        cameraMode = cameraMode === "perspective" ? "orthographic" : "perspective";
+        const previousCamera = activeCamera;
+        activeCamera = cameraMode === "perspective" ? perspectiveCamera : orthographicCamera;
+        activeCamera.position.copy(previousCamera.position);
+        activeCamera.up.copy(previousCamera.up);
+        activeCamera.lookAt(cameraTarget);
+        updateCameraUI();
+        resize();
+      });
+      updateCameraUI();
+
       const resetButton = document.querySelector("#reset-view");
       resetButton.addEventListener("click", () => {
         controlMode = "sphere";
         updateModeUI();
         group.rotation.copy(initialRotation);
+        cameraMode = "orthographic";
+        activeCamera = orthographicCamera;
+        updateCameraUI();
         cameraYaw = 0;
         cameraPitch = 0;
         updateCameraOrbit();
       });
 
+      const updateOrthographicCamera = () => {
+        const { clientWidth, clientHeight } = canvas;
+        const aspect = clientWidth / clientHeight;
+        orthographicCamera.left = (-orthographicFrustumSize * aspect) / 2;
+        orthographicCamera.right = (orthographicFrustumSize * aspect) / 2;
+        orthographicCamera.top = orthographicFrustumSize / 2;
+        orthographicCamera.bottom = -orthographicFrustumSize / 2;
+        orthographicCamera.updateProjectionMatrix();
+      };
+
       const resize = () => {
         const { clientWidth, clientHeight } = canvas;
         renderer.setSize(clientWidth, clientHeight, false);
-        camera.aspect = clientWidth / clientHeight;
-        camera.updateProjectionMatrix();
+        perspectiveCamera.aspect = clientWidth / clientHeight;
+        perspectiveCamera.updateProjectionMatrix();
+        updateOrthographicCamera();
       };
 
       const render = () => {
         resize();
-        renderer.render(scene, camera);
+        renderer.render(scene, activeCamera);
         requestAnimationFrame(render);
       };
 
