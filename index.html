@@ -47,22 +47,14 @@
 
       .screen-axis.vertical {
         width: 2px;
-        height: 600px;
+        height: 700px;
         transform: translate(-50%, -50%);
       }
 
       .screen-axis.horizontal {
-        width: 600px;
+        width: 700px;
         height: 2px;
         transform: translate(-50%, -50%);
-      }
-
-      .scene-wrap.orthographic .screen-axis.vertical {
-        height: 680px;
-      }
-
-      .scene-wrap.orthographic .screen-axis.horizontal {
-        width: 680px;
       }
 
       .panel {
@@ -129,6 +121,21 @@
         display: grid;
         gap: 10px;
         font-size: 0.9rem;
+      }
+
+      .debug {
+        padding: 12px;
+        border-radius: 10px;
+        background: rgba(16, 22, 30, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.85rem;
+        color: #c9d3e1;
+        display: grid;
+        gap: 6px;
+      }
+
+      .debug strong {
+        color: #f4f6fa;
       }
 
       .legend span {
@@ -204,6 +211,13 @@
             <button id="reset-view">Reset orientation</button>
           </div>
         </div>
+        <div class="debug" aria-live="polite">
+          <strong>Camera diagnostics</strong>
+          <span id="debug-mode">Mode: orthographic</span>
+          <span id="debug-distance">Distance: 0</span>
+          <span id="debug-fov">Perspective FOV: 0°</span>
+          <span id="debug-frustum">Ortho height: 0</span>
+        </div>
         <div class="legend">
           <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
           <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
@@ -227,9 +241,10 @@
 
       const cameraRadius = 6;
       const sphereRadius = 1.5;
-      const orthographicFrustumSize = 4;
-      const perspectiveFov =
-        (2 * Math.atan(orthographicFrustumSize / (2 * cameraRadius)) * 180) / Math.PI;
+      const perspectiveFov = 40;
+      const tangentDistance = Math.sqrt(cameraRadius ** 2 - sphereRadius ** 2);
+      const orthographicFrustumSize =
+        2 * tangentDistance * Math.tan(THREE.MathUtils.degToRad(perspectiveFov / 2));
       const perspectiveCamera = new THREE.PerspectiveCamera(perspectiveFov, 1, 0.1, 100);
       const orthographicCamera = new THREE.OrthographicCamera(
         -orthographicFrustumSize / 2,
@@ -356,11 +371,17 @@
         });
       });
 
+      const debugMode = document.querySelector("#debug-mode");
+      const debugDistance = document.querySelector("#debug-distance");
+      const debugFov = document.querySelector("#debug-fov");
+      const debugFrustum = document.querySelector("#debug-frustum");
+
       const toggleCameraButton = document.querySelector("#toggle-camera");
       const updateCameraUI = () => {
         toggleCameraButton.textContent =
           cameraMode === "perspective" ? "Switch to orthographic" : "Switch to perspective";
         sceneWrap.classList.toggle("orthographic", cameraMode === "orthographic");
+        debugMode.textContent = `Mode: ${cameraMode}`;
       };
       toggleCameraButton.addEventListener("click", () => {
         cameraMode = cameraMode === "perspective" ? "orthographic" : "perspective";
@@ -395,6 +416,13 @@
         orthographicCamera.updateProjectionMatrix();
       };
 
+      const updateDebugPanel = () => {
+        debugMode.textContent = `Mode: ${cameraMode}`;
+        debugDistance.textContent = `Distance: ${activeCamera.position.length().toFixed(2)}`;
+        debugFov.textContent = `Perspective FOV: ${perspectiveCamera.fov.toFixed(2)}°`;
+        debugFrustum.textContent = `Ortho height: ${orthographicFrustumSize.toFixed(2)}`;
+      };
+
       const resize = () => {
         const { clientWidth, clientHeight } = canvas;
         renderer.setSize(clientWidth, clientHeight, false);
@@ -405,6 +433,7 @@
 
       const render = () => {
         resize();
+        updateDebugPanel();
         renderer.render(scene, activeCamera);
         requestAnimationFrame(render);
       };
