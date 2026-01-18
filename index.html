@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HeadViz Sphere Controls</title>
+    <title>HeadViz</title>
     <style>
       :root {
         color-scheme: dark;
@@ -117,12 +117,6 @@
         transform: translateY(0);
       }
 
-      .legend {
-        display: grid;
-        gap: 10px;
-        font-size: 0.9rem;
-      }
-
       .debug {
         padding: 12px;
         border-radius: 10px;
@@ -135,35 +129,6 @@
       }
 
       .debug strong {
-        color: #f4f6fa;
-      }
-
-      .legend span {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .swatch {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        border: 2px solid currentColor;
-      }
-
-      .swatch.red {
-        color: #ff4d4d;
-      }
-
-      .swatch.blue {
-        color: #4da3ff;
-      }
-
-      .swatch.green {
-        color: #4dff88;
-      }
-
-      .swatch.white {
         color: #f4f6fa;
       }
 
@@ -187,20 +152,24 @@
         <div class="screen-axis horizontal"></div>
       </div>
       <div class="panel">
-        <h1>Sphere Orientation Controls</h1>
+        <h1>Getting to grips with head orientation</h1>
         <p>
-          Rotate the semi-transparent sphere and its great circles around each axis.
-          The red circle tracks the vertical (Y) axis, and the blue circle tracks the
-          horizontal (X) axis.
+          Excal's excellent video
+          <a href="https://www.youtube.com/watch?v=bb3ZNrbkCoA">
+            "The Biggest Mistake You're Making When Drawing Heads"
+          </a>
+          shows how to build up the basic structure of the Loomis head with the correct
+          construction of the circle, axes and ellipses. This app shows how the ellipses
+          change as the sphere orientation changes, this can be tricky to grasp.
         </p>
         <div class="controls">
           <p>
-            Click and drag in the canvas to rotate the sphere freely around the fixed axes.
+            Click and drag in the canvas to rotate the sphere.
           </p>
           <div class="control-group">
-            <span>Rotate around white axis</span>
-            <button data-axis="z" data-direction="1">White +</button>
-            <button data-axis="z" data-direction="-1">White −</button>
+            <span>Tilting the head</span>
+            <button data-axis="z" data-direction="1">Left</button>
+            <button data-axis="z" data-direction="-1">Right</button>
           </div>
           <div class="control-group">
             <span>Camera type</span>
@@ -217,13 +186,6 @@
           <span id="debug-distance">Distance: 0</span>
           <span id="debug-fov">Perspective FOV: 0°</span>
           <span id="debug-frustum">Ortho height: 0</span>
-        </div>
-        <div class="legend">
-          <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
-          <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
-          <span><span class="swatch green"></span> Green: screen-space vertical axis</span>
-          <span><span class="swatch green"></span> Green: screen-space horizontal axis</span>
-          <span><span class="swatch white"></span> White: surface normal at circle intersection</span>
         </div>
       </div>
     </div>
