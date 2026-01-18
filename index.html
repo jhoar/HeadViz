@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HeadViz Sphere Controls</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        background: radial-gradient(circle at top, #1f2a38, #0b0f14 60%);
+        color: #f4f6fa;
+      }
+
+      #app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        width: 100%;
+      }
+
+      .scene-wrap {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .screen-axis {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        background: #4dff88;
+        box-shadow: 0 0 12px rgba(77, 255, 136, 0.4);
+        pointer-events: none;
+      }
+
+      .screen-axis.vertical {
+        width: 2px;
+        height: 600px;
+        transform: translate(-50%, -50%);
+      }
+
+      .screen-axis.horizontal {
+        width: 600px;
+        height: 2px;
+        transform: translate(-50%, -50%);
+      }
+
+      .scene-wrap.orthographic .screen-axis.vertical {
+        height: 680px;
+      }
+
+      .scene-wrap.orthographic .screen-axis.horizontal {
+        width: 680px;
+      }
+
+      .panel {
+        padding: 24px;
+        background: rgba(12, 15, 20, 0.8);
+        backdrop-filter: blur(10px);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .panel h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .panel p {
+        margin: 0;
+        line-height: 1.5;
+        color: #c9d3e1;
+      }
+
+      .controls {
+        display: grid;
+        gap: 12px;
+      }
+
+      .control-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .control-group span {
+        grid-column: 1 / -1;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.75rem;
+        color: #8fa3bd;
+      }
+
+      button {
+        background: #1d2734;
+        border: 1px solid #2e3a4b;
+        color: inherit;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        border-color: #5e86ff;
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .legend {
+        display: grid;
+        gap: 10px;
+        font-size: 0.9rem;
+      }
+
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+      }
+
+      .swatch.red {
+        color: #ff4d4d;
+      }
+
+      .swatch.blue {
+        color: #4da3ff;
+      }
+
+      .swatch.green {
+        color: #4dff88;
+      }
+
+      .swatch.white {
+        color: #f4f6fa;
+      }
+
+      @media (max-width: 900px) {
+        #app {
+          grid-template-columns: 1fr;
+        }
+
+        .panel {
+          border-left: none;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="scene-wrap">
+        <canvas id="scene"></canvas>
+        <div class="screen-axis vertical"></div>
+        <div class="screen-axis horizontal"></div>
+      </div>
+      <div class="panel">
+        <h1>Sphere Orientation Controls</h1>
+        <p>
+          Rotate the semi-transparent sphere and its great circles around each axis.
+          The red circle tracks the vertical (Y) axis, and the blue circle tracks the
+          horizontal (X) axis.
+        </p>
+        <div class="controls">
+          <p>
+            Click and drag in the canvas to rotate the sphere freely around the fixed axes.
+          </p>
+          <div class="control-group">
+            <span>Rotate around white axis</span>
+            <button data-axis="z" data-direction="1">White +</button>
+            <button data-axis="z" data-direction="-1">White −</button>
+          </div>
+          <div class="control-group">
+            <span>Control mode</span>
+            <button id="toggle-mode">Switch to camera orbit</button>
+          </div>
+          <div class="control-group">
+            <span>Camera type</span>
+            <button id="toggle-camera">Switch to orthographic</button>
+          </div>
+          <div class="control-group">
+            <span>Reset</span>
+            <button id="reset-view">Reset orientation</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><span class="swatch red"></span> Red: vertical-axis great circle</span>
+          <span><span class="swatch blue"></span> Blue: horizontal-axis great circle</span>
+          <span><span class="swatch green"></span> Green: screen-space vertical axis</span>
+          <span><span class="swatch green"></span> Green: screen-space horizontal axis</span>
+          <span><span class="swatch white"></span> White: surface normal at circle intersection</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js";
+
+      const canvas = document.querySelector("#scene");
+      const sceneWrap = document.querySelector(".scene-wrap");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color("#0b0f14");
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      const cameraRadius = 6;
+      const perspectiveCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      const orthographicCamera = new THREE.OrthographicCamera(-3, 3, 3, -3, 0.1, 100);
+      let activeCamera = orthographicCamera;
+      let cameraMode = "orthographic";
+      const orthographicFrustumSize = 4;
+      activeCamera.position.set(0, 0, cameraRadius);
+
+      const light = new THREE.DirectionalLight(0xffffff, 1.1);
+      light.position.set(3, 3, 4);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const initialRotation = new THREE.Euler(-0.3, -0.4, 0);
+      group.rotation.copy(initialRotation);
+
+      const cameraTarget = new THREE.Vector3(0, 0, 0);
+      let cameraYaw = 0;
+      let cameraPitch = 0;
+      const cameraPitchLimit = Math.PI / 2 - 0.1;
+
+      const updateCameraOrbit = () => {
+        const x = cameraRadius * Math.cos(cameraPitch) * Math.sin(cameraYaw);
+        const y = cameraRadius * Math.sin(cameraPitch);
+        const z = cameraRadius * Math.cos(cameraPitch) * Math.cos(cameraYaw);
+        activeCamera.position.set(x, y, z);
+        activeCamera.lookAt(cameraTarget);
+      };
+      updateCameraOrbit();
+
+      let isDragging = false;
+      let lastX = 0;
+      let lastY = 0;
+      const rotationSpeed = 0.005;
+      const orbitSpeed = 0.004;
+      let controlMode = "sphere";
+
+      const onPointerDown = (event) => {
+        isDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+      };
+
+      const onPointerMove = (event) => {
+        if (!isDragging) {
+          return;
+        }
+
+        const deltaX = event.clientX - lastX;
+        const deltaY = event.clientY - lastY;
+        if (controlMode === "sphere") {
+          group.rotation.y += deltaX * rotationSpeed;
+          group.rotation.x += deltaY * rotationSpeed;
+        } else {
+          cameraYaw += deltaX * orbitSpeed;
+          cameraPitch += deltaY * orbitSpeed;
+          cameraPitch = Math.max(-cameraPitchLimit, Math.min(cameraPitchLimit, cameraPitch));
+          updateCameraOrbit();
+        }
+
+        lastX = event.clientX;
+        lastY = event.clientY;
+      };
+
+      const endDrag = () => {
+        isDragging = false;
+      };
+
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointerleave", endDrag);
+
+      const sphereRadius = 1.5;
+      const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 64, 64);
+      const sphereMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x3fa9f5,
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.1,
+        metalness: 0.1,
+        transmission: 0.4,
+        side: THREE.DoubleSide,
+      });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      group.add(sphere);
+
+      const ringSegments = 128;
+      const verticalCircle = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(
+          Array.from({ length: ringSegments + 1 }, (_, i) => {
+            const theta = (i / ringSegments) * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(theta) * sphereRadius, 0, Math.sin(theta) * sphereRadius);
+          })
+        ),
+        new THREE.LineBasicMaterial({ color: 0xff4d4d })
+      );
+      group.add(verticalCircle);
+
+      const horizontalCircle = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(
+          Array.from({ length: ringSegments + 1 }, (_, i) => {
+            const theta = (i / ringSegments) * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(theta) * sphereRadius, 0, Math.sin(theta) * sphereRadius);
+          })
+        ),
+        new THREE.LineBasicMaterial({ color: 0x4da3ff })
+      );
+      horizontalCircle.rotation.z = Math.PI / 2;
+      group.add(horizontalCircle);
+
+      const tangentMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+      const normalGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, sphereRadius),
+        new THREE.Vector3(0, 0, 2.2),
+      ]);
+      const normalLine = new THREE.Line(normalGeometry, tangentMaterial);
+      group.add(normalLine);
+
+      const axisRotationStep = Math.PI / 24;
+      document.querySelectorAll("button[data-axis]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const axis = button.dataset.axis;
+          const direction = Number(button.dataset.direction);
+          group.rotation[axis] += axisRotationStep * direction;
+        });
+      });
+
+      const toggleModeButton = document.querySelector("#toggle-mode");
+      const updateModeUI = () => {
+        toggleModeButton.textContent =
+          controlMode === "sphere" ? "Switch to camera orbit" : "Switch to sphere rotation";
+      };
+      toggleModeButton.addEventListener("click", () => {
+        controlMode = controlMode === "sphere" ? "camera" : "sphere";
+        updateModeUI();
+      });
+      updateModeUI();
+
+      const toggleCameraButton = document.querySelector("#toggle-camera");
+      const updateCameraUI = () => {
+        toggleCameraButton.textContent =
+          cameraMode === "perspective" ? "Switch to orthographic" : "Switch to perspective";
+        sceneWrap.classList.toggle("orthographic", cameraMode === "orthographic");
+      };
+      toggleCameraButton.addEventListener("click", () => {
+        cameraMode = cameraMode === "perspective" ? "orthographic" : "perspective";
+        const previousCamera = activeCamera;
+        activeCamera = cameraMode === "perspective" ? perspectiveCamera : orthographicCamera;
+        activeCamera.position.copy(previousCamera.position);
+        activeCamera.up.copy(previousCamera.up);
+        activeCamera.lookAt(cameraTarget);
+        updateCameraUI();
+        resize();
+      });
+      updateCameraUI();
+
+      const resetButton = document.querySelector("#reset-view");
+      resetButton.addEventListener("click", () => {
+        controlMode = "sphere";
+        updateModeUI();
+        group.rotation.copy(initialRotation);
+        cameraMode = "orthographic";
+        activeCamera = orthographicCamera;
+        updateCameraUI();
+        cameraYaw = 0;
+        cameraPitch = 0;
+        updateCameraOrbit();
+      });
+
+      const updateOrthographicCamera = () => {
+        const { clientWidth, clientHeight } = canvas;
+        const aspect = clientWidth / clientHeight;
+        orthographicCamera.left = (-orthographicFrustumSize * aspect) / 2;
+        orthographicCamera.right = (orthographicFrustumSize * aspect) / 2;
+        orthographicCamera.top = orthographicFrustumSize / 2;
+        orthographicCamera.bottom = -orthographicFrustumSize / 2;
+        orthographicCamera.updateProjectionMatrix();
+      };
+
+      const resize = () => {
+        const { clientWidth, clientHeight } = canvas;
+        renderer.setSize(clientWidth, clientHeight, false);
+        perspectiveCamera.aspect = clientWidth / clientHeight;
+        perspectiveCamera.updateProjectionMatrix();
+        updateOrthographicCamera();
+      };
+
+      const render = () => {
+        resize();
+        renderer.render(scene, activeCamera);
+        requestAnimationFrame(render);
+      };
+
+      render();
+
+      window.addEventListener("resize", resize);
+    </script>
+  </body>
+</html>
